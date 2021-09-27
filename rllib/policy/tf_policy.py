@@ -563,7 +563,11 @@ class TFPolicy(Policy):
     def set_state(self, state: dict) -> None:
         # Set optimizer vars first.
         optimizer_vars = state.get("_optimizer_variables", None)
+        print(set(self._optimizer_variables.get_weights().keys()))
         if optimizer_vars:
+            print(set(optimizer_vars.keys()))
+            print(set(self._optimizer_variables.get_weights().keys()) - set(optimizer_vars.keys()))
+            import ipdb; ipdb.set_trace()
             self._optimizer_variables.set_weights(optimizer_vars)
         # Set exploration's state.
         if hasattr(self, "exploration") and "_exploration_state" in state:
