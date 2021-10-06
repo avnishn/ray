@@ -23,7 +23,8 @@ parser.add_argument("--stop-iters", type=int, default=2)
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    ray.init()
+    # ray.init()
+    ray.init(address='ray://35.166.120.245:10001')
 
     param_storage = ParameterStorage.options(name="param-server").remote()
 
@@ -33,7 +34,7 @@ if __name__ == "__main__":
             "param_server": "param-server",
         },
         # Use GPUs iff `RLLIB_NUM_GPUS` env var set to > 0.
-        "num_gpus": int(os.environ.get("RLLIB_NUM_GPUS", "0")),
+        "num_gpus": 1,
         "num_workers": 2,  # parallelism
         # Make sure every environment gets a fixed seed.
         "num_envs_per_worker": 2,
@@ -55,6 +56,7 @@ if __name__ == "__main__":
     results2 = tune.run(args.run, config=config, stop=stop, verbose=1)
 
     if args.as_test:
+        import ipdb; ipdb.set_trace()
         results1 = list(results1.results.values())[0]
         results2 = list(results2.results.values())[0]
         # Test rollout behavior.

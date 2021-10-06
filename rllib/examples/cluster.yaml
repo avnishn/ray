@@ -1,0 +1,61 @@
+cluster_name: gpu-avnish-pytorch-issue
+
+provider:
+    type: aws
+    region: us-west-2
+    cache_stopped_nodes: False
+    security_group:
+        GroupName: ray_client_security_group
+        IpPermissions:
+              - FromPort: 1024
+                ToPort: 49151
+                IpProtocol: TCP
+                IpRanges:
+                    # This will enable inbound access from ALL IPv4 addresses.
+                    - CidrIp: 0.0.0.0/0
+
+idle_timeout_minutes: 120
+
+auth:
+    ssh_user: ubuntu
+    ssh_private_key: /Users/avnish/.ssh/avnish.pem
+
+available_node_types:
+    gpu_node:
+        node_config:
+            InstanceType: g4dn.4xlarge
+            KeyName: avnish
+            BlockDeviceMappings:
+            - DeviceName: /dev/sda1
+              Ebs:
+                  VolumeSize: 1000
+        resources: {}
+        
+
+docker:
+    image: "rayproject/ray-ml:nightly-py37-gpu" # You can change this to latest-cpu if you don't need GPU support and want a faster startup
+    container_name: "ray_container"
+    # If true, pulls latest version of image. Otherwise, `docker run` will only pull the image
+    # if no cached version is present.
+    pull_before_run: True
+#    run_options: []  # Extra options to pass into "docker run
+
+head_node_type: gpu_node
+
+file_mounts: {
+   "/home/ray/ray/": "/Users/avnish/avnish_ray",
+}
+
+# file_mounts_sync_continuously: True
+
+
+setup_commands:
+    - ls
+    # - pip install "gym[atari]"
+    # - pip install "ray[rllib]"
+    # - ray install-nightly
+    # # - pip install tensorflow==2.2
+    # - python ray/python/ray/setup-dev.py <<< $'y\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\n' || true
+    # - python ray/python/ray/setup-dev.py
+    - pip install ipdb
+

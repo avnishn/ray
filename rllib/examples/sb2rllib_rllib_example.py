@@ -8,6 +8,9 @@ Run example: python sb2rllib_rllib_example.py
 import gym
 import ray
 import ray.rllib.agents.ppo as ppo
+from ray import tune
+
+ray.init(address='ray://52.27.85.202:10001')
 
 # settings used for both stable baselines and rllib
 env_name = "CartPole-v1"
@@ -16,7 +19,7 @@ learning_rate = 1e-3
 save_dir = "saved_models"
 
 # training and saving
-analysis = ray.tune.run(
+analysis = tune.run(
     "PPO",
     stop={"timesteps_total": train_steps},
     config={
@@ -26,24 +29,24 @@ analysis = ray.tune.run(
     checkpoint_at_end=True,
     local_dir=save_dir,
 )
-# retrieve the checkpoint path
-analysis.default_metric = "episode_reward_mean"
-analysis.default_mode = "max"
-checkpoint_path = analysis.get_best_checkpoint(trial=analysis.get_best_trial())
-print(f"Trained model saved at {checkpoint_path}")
+# # retrieve the checkpoint path
+# analysis.default_metric = "episode_reward_mean"
+# analysis.default_mode = "max"
+# checkpoint_path = analysis.get_best_checkpoint(trial=analysis.get_best_trial())
+# print(f"Trained model saved at {checkpoint_path}")
 
-# load and restore model
-agent = ppo.PPOTrainer(env=env_name)
-agent.restore(checkpoint_path)
-print(f"Agent loaded from saved model at {checkpoint_path}")
+# # load and restore model
+# agent = ppo.PPOTrainer(env=env_name)
+# agent.restore(checkpoint_path)
+# print(f"Agent loaded from saved model at {checkpoint_path}")
 
-# inference
-env = gym.make(env_name)
-obs = env.reset()
-for i in range(1000):
-    action = agent.compute_single_action(obs)
-    obs, reward, done, info = env.step(action)
-    env.render()
-    if done:
-        print(f"Cart pole dropped after {i} steps.")
-        break
+# # inference
+# env = gym.make(env_name)
+# obs = env.reset()
+# for i in range(1000):
+#     action = agent.compute_single_action(obs)
+#     obs, reward, done, info = env.step(action)
+#     env.render()
+#     if done:
+#         print(f"Cart pole dropped after {i} steps.")
+#         break
