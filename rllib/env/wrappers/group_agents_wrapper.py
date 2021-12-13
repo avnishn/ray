@@ -44,6 +44,7 @@ class GroupAgentsWrapper(MultiAgentEnv):
         self.env = env
         self.groups = groups
         self.agent_id_to_group = {}
+        self.group_ids = set(groups.keys())
         for group_id, agent_ids in groups.items():
             for agent_id in agent_ids:
                 if agent_id in self.agent_id_to_group:
@@ -54,6 +55,9 @@ class GroupAgentsWrapper(MultiAgentEnv):
             self.observation_space = obs_space
         if act_space is not None:
             self.action_space = act_space
+
+    def get_agent_ids(self):
+        return self.group_ids
 
     def seed(self, seed=None):
         if not hasattr(self.env, "seed"):

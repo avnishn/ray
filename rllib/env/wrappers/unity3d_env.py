@@ -1,9 +1,10 @@
-from gym.spaces import Box, MultiDiscrete, Tuple as TupleSpace
+from gym.spaces import Box, MultiDiscrete, Tuple as TupleSpace, Space, \
+    Dict as DictSpace
 import logging
 import numpy as np
 import random
 import time
-from typing import Callable, Optional, Tuple
+from typing import Callable, Optional, Tuple, Set
 
 from ray.rllib.env.multi_agent_env import MultiAgentEnv
 from ray.rllib.policy.policy import PolicySpec
@@ -34,13 +35,18 @@ class Unity3DEnv(MultiAgentEnv):
     # The worker_id for each environment instance
     _WORKER_ID = 0
 
-    def __init__(self,
-                 file_name: str = None,
-                 port: Optional[int] = None,
-                 seed: int = 0,
-                 no_graphics: bool = False,
-                 timeout_wait: int = 300,
-                 episode_horizon: int = 1000):
+    def __init__(
+            self,
+            file_name: str = None,
+            port: Optional[int] = None,
+            seed: int = 0,
+            no_graphics: bool = False,
+            timeout_wait: int = 300,
+            episode_horizon: int = 1000,
+            observation_space: Space = None,
+            action_space: Space = None,
+            training_mode: bool = True,
+    ):
         """Initializes a Unity3DEnv object.
 
         Args:
@@ -59,6 +65,15 @@ class Unity3DEnv(MultiAgentEnv):
                 multi-agent episode that the game represents).
                 Note: The game itself may contain its own episode length
                 limits, which are always obeyed (on top of this value here).
+            observation_space: The observation space of the Unity3DEnv.
+            action_space: The action space of the Unity3DEnv.
+            training_mode: If true, observation_space and action space are
+                required.
+
+        Note:
+            The observation and action spaces should be gym Dict spaces that
+            map from agent_id to the corresponding spaces for that agent.
+
         """
 
         super().__init__()
@@ -111,6 +126,38 @@ class Unity3DEnv(MultiAgentEnv):
         self.episode_horizon = episode_horizon
         # Keep track of how many times we have called `step` so far.
         self.episode_timesteps = 0
+
+        if training_mode:
+            if observation_space is None:
+                raise ValueError("Observation space must be provided. if the "
+                                 "training_mode flag is True.")
+            if action_space is None:
+                raise ValueError("Action space must be provided. if the "
+                                 "training_mode flag is True.")
+            self.observation_space = observation_space
+            self.action_space = action_space
+            if not isinstance(observation_space, DictSpace):
+                raise ValueError("observation_space must be a gym Dict space. "
+                                 "mapping from agent_ids for your environment "
+                                 "to a corresponding gym space.")
+            if not isinstance(action_space, DictSpace):
+                raise ValueError("action_space must be a gym Dict space. "
+                                 "mapping from agent_ids for your environment "
+                                 "to a corresponding gym space.")
+            if not set(observation_space.keys()) == set(action_space.keys()):
+                error_msg_spaces = (
+                    "The observation and action spaces should be gym "
+                    "Dict spaces that map from agent_id to the "
+                    "corresponding spaces for that agent. "
+                    "Furthermore, the agent_ids of the observation "
+                    "space and action space should match.\nObservation_space:"
+                    f"\n{observation_space.keys()} \n Action space: \n"
+                    f"{action_space.keys()}")
+                raise ValueError(error_msg_spaces)
+            self._agent_ids = set(self.observation_space.keys())
+
+    def get_agent_ids(self) -> Set[AgentID]:
+        return self._agent_ids
 
     def step(
             self, action_dict: MultiAgentDict

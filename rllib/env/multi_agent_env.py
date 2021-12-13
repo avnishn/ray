@@ -1,5 +1,5 @@
 import gym
-from typing import Callable, Dict, List, Tuple, Type, Optional, Union
+from typing import Callable, Dict, List, Tuple, Type, Optional, Union, Set
 
 from ray.rllib.env.base_env import BaseEnv
 from ray.rllib.env.env_context import EnvContext
@@ -19,6 +19,10 @@ class MultiAgentEnv(gym.Env):
     are not to be confused with RLlib Trainers, which are also sometimes
     referred to as "agents" or "RL agents".
     """
+
+    @PublicAPI
+    def get_agent_ids(self) -> Set[AgentID]:
+        raise NotImplementedError
 
     @PublicAPI
     def reset(self) -> MultiAgentDict:
@@ -240,8 +244,20 @@ def make_multi_agent(
             else:
                 self.agents = [env_name_or_creator(config) for _ in range(num)]
             self.dones = set()
-            self.observation_space = self.agents[0].observation_space
-            self.action_space = self.agents[0].action_space
+            self.observation_space = {
+                idx: agent.observation_space
+                for idx, agent in enumerate(self.agents)
+            }
+            self.observation_space = gym.spaces.Dict(self.observation_space)
+            self.action_space = {
+                idx: agent.action_space
+                for idx, agent in enumerate(self.agents)
+            }
+            self.action_space = gym.spaces.Dict(self.action_space)
+            self.agent_ids = {i for i, _ in enumerate(self.agents)}
+
+        def get_agent_ids(self) -> Set[AgentID]:
+            self.agent_ids
 
         @override(MultiAgentEnv)
         def reset(self):
@@ -275,9 +291,16 @@ class MultiAgentEnvWrapper(BaseEnv):
                  existing_envs: MultiAgentEnv, num_envs: int):
         """Wraps MultiAgentEnv(s) into the BaseEnv API.
 
+        Note:
+            The observation and action spaces of the env produced by make_env,
+            or of the existing_envs, must be gym Dict spaces of the form
+            {agent_id: gym.space}. The agent_ids must be the same as the agent
+            ids produced from calling env.get_agent_ids() on the existing envs/
+            the envs produced by make_env.
+
         Args:
             make_env (Callable[[int], EnvType]): Factory that produces a new
-                MultiAgentEnv intance. Must be defined, if the number of
+                MultiAgentEnv instance. Must be defined, if the number of
                 existing envs is less than num_envs.
             existing_envs (List[MultiAgentEnv]): List of already existing
                 multi-agent envs.
@@ -355,18 +378,13 @@ class MultiAgentEnvWrapper(BaseEnv):
     @override(BaseEnv)
     @PublicAPI
     def observation_space(self) -> gym.spaces.Dict:
-        space = {
-            _id: env.observation_space
-            for _id, env in enumerate(self.envs)
-        }
-        return gym.spaces.Dict(space)
+        self.envs[0].observation_space
 
     @property
     @override(BaseEnv)
     @PublicAPI
     def action_space(self) -> gym.Space:
-        space = {_id: env.action_space for _id, env in enumerate(self.envs)}
-        return gym.spaces.Dict(space)
+        return self.envs[0].action_space
 
 
 class _MultiAgentEnvState:

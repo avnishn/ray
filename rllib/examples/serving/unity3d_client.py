@@ -95,7 +95,8 @@ if __name__ == "__main__":
 
     # Start and reset the actual Unity3DEnv (either already running Unity3D
     # editor or a binary (game) to be started automatically).
-    env = Unity3DEnv(file_name=args.game, episode_horizon=args.horizon)
+    env = Unity3DEnv(
+        file_name=args.game, episode_horizon=args.horizon, training_mode=False)
     obs = env.reset()
     eid = client.start_episode(training_enabled=not args.no_train)
 

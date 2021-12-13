@@ -22,6 +22,7 @@ $ python unity3d_env_local.py --env 3DBall --stop-reward [..]
 """
 
 import argparse
+from gym.spaces import Dict
 import os
 
 import ray
@@ -99,19 +100,28 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    # Get policies (different agent types; "behaviors" in MLAgents) and
+    # the mappings from individual agents to Policies.
+    policies, policy_mapping_fn = \
+        Unity3DEnv.get_policy_configs_for_game(args.env)
+
+    observation_space = {}
+    action_space = {}
+    for agent_id, policy_spec in policies.items():
+        observation_space[agent_id] = policy_spec.observation_space
+        action_space[agent_id] = policy_spec.action_space
+    observation_space = Dict(observation_space)
+    action_space = Dict(action_space)
     tune.register_env(
         "unity3d",
         lambda c: Unity3DEnv(
+            observation_space=observation_space,
+            action_space=action_space,
             file_name=c["file_name"],
             no_graphics=(args.env != "VisualHallway" and
                          c["file_name"] is not None),
             episode_horizon=c["episode_horizon"],
         ))
-
-    # Get policies (different agent types; "behaviors" in MLAgents) and
-    # the mappings from individual agents to Policies.
-    policies, policy_mapping_fn = \
-        Unity3DEnv.get_policy_configs_for_game(args.env)
 
     config = {
         "env": "unity3d",

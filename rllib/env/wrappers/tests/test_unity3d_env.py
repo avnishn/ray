@@ -10,7 +10,7 @@ class TestUnity3DEnv(unittest.TestCase):
         """Test if the environment uses the editor port
          when no environment file is provided"""
 
-        _ = Unity3DEnv(port=None)
+        _ = Unity3DEnv(port=None, training_mode=False)
         args, kwargs = mock_unity3d.call_args
         mock_unity3d.assert_called_once()
         self.assertEqual(5004, kwargs.get("base_port"))
@@ -19,7 +19,7 @@ class TestUnity3DEnv(unittest.TestCase):
         """Test if the environment uses the correct port
         when the environment file is provided"""
 
-        _ = Unity3DEnv(file_name="app", port=None)
+        _ = Unity3DEnv(file_name="app", port=None, training_mode=False)
         args, kwargs = mock_unity3d.call_args
         mock_unity3d.assert_called_once()
         self.assertEqual(5005, kwargs.get("base_port"))
@@ -28,9 +28,9 @@ class TestUnity3DEnv(unittest.TestCase):
         """Test if the base_port + worker_id
         is different for each environment"""
 
-        _ = Unity3DEnv(file_name="app", port=None)
+        _ = Unity3DEnv(file_name="app", port=None, training_mode=False)
         args, kwargs_first = mock_unity3d.call_args
-        _ = Unity3DEnv(file_name="app", port=None)
+        _ = Unity3DEnv(file_name="app", port=None, training_mode=False)
         args, kwargs_second = mock_unity3d.call_args
         self.assertNotEqual(
             kwargs_first.get("base_port") + kwargs_first.get("worker_id"),
@@ -40,9 +40,9 @@ class TestUnity3DEnv(unittest.TestCase):
         """Test if the base_port + worker_id is different
         for each environment when using custom ports"""
 
-        _ = Unity3DEnv(file_name="app", port=5010)
+        _ = Unity3DEnv(file_name="app", port=5010, training_mode=False)
         args, kwargs_first = mock_unity3d.call_args
-        _ = Unity3DEnv(file_name="app", port=5010)
+        _ = Unity3DEnv(file_name="app", port=5010, training_mode=False)
         args, kwargs_second = mock_unity3d.call_args
         self.assertNotEqual(
             kwargs_first.get("base_port") + kwargs_first.get("worker_id"),
