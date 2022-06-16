@@ -37,7 +37,7 @@ from ray.rllib.utils.metrics import (
     NUM_ENV_STEPS_TRAINED,
 )
 
-# from ray.rllib.utils.metrics.learner_info import LearnerInfoBuilder
+from ray.rllib.utils.metrics.learner_info import LearnerInfoBuilder
 from ray.rllib.utils.typing import (
     PartialAlgorithmConfigDict,
     ResultDict,
@@ -797,6 +797,7 @@ class Impala(Algorithm):
 
     def process_trained_results(self) -> ResultDict:
         # Get learner outputs/stats from output queue.
+        final_learner_info = {}
         learner_infos = []
         num_env_steps_trained = 0
         num_agent_steps_trained = 0
@@ -814,14 +815,19 @@ class Impala(Algorithm):
                     learner_infos.append(learner_results)
             else:
                 raise RuntimeError("The learner thread died in while training")
-        learner_info = copy.deepcopy(self._learner_thread.learner_info)
+        # learner_info = copy.deepcopy(self._learner_thread.learner_info)
+        if learner_infos:
+            builder = LearnerInfoBuilder()
+            for info in learner_infos:
+                builder.add_learn_on_batch_results_multi_agent(info)
+            final_learner_info = builder.finalize()
 
         # Update the steps trained counters.
         self._counters[STEPS_TRAINED_THIS_ITER_COUNTER] = num_agent_steps_trained
         self._counters[NUM_ENV_STEPS_TRAINED] += num_env_steps_trained
         self._counters[NUM_AGENT_STEPS_TRAINED] += num_agent_steps_trained
 
-        return learner_info
+        return final_learner_info
 
     def process_experiences_directly(
         self, actor_to_sample_batches_refs: Dict[ActorHandle, List[ObjectRef]]
