@@ -328,6 +328,48 @@ class _VectorizedGymEnv(VectorEnv):
         return self.envs[index].render()
 
 
+class _AsyncVectorizedGymEnv(VectorEnv):
+    """Internal wrapper to translate any gym.Envs into a gym async vectorized 
+        env.
+    
+    """
+
+    def __init__(
+        self,
+        make_env: Optional[Callable[[int], EnvType]] = None,
+        existing_envs: Optional[List[gym.Env]] = None,
+        num_envs: int = 1,
+        *,
+        observation_space: Optional[gym.Space] = None,
+        action_space: Optional[gym.Space] = None,
+        restart_failed_sub_environments: bool = False,
+        # Deprecated. These seem to have never been used.
+        env_config=None,
+        policy_config=None,
+    ):
+        """Initializes a _VectorizedGymEnv object.
+
+        Args:
+            make_env: Factory that produces a new gym.Env taking the sub-env's
+                vector index as only arg. Must be defined if the
+                number of `existing_envs` is less than `num_envs`.
+            existing_envs: Optional list of already instantiated sub
+                environments.
+            num_envs: Total number of sub environments in this VectorEnv.
+            action_space: The action space. If None, use existing_envs[0]'s
+                action space.
+            observation_space: The observation space. If None, use
+                existing_envs[0]'s observation space.
+            restart_failed_sub_environments: If True and any sub-environment (within
+                a vectorized env) throws any error during env stepping, we will try to
+                restart the faulty sub-environment. This is done
+                without disturbing the other (still intact) sub-environments.
+        """
+        self.envs = existing_envs
+        self.make_env = make_env
+        self.restart_failed_sub_environments = restart_failed_sub_environments
+
+
 @PublicAPI
 class VectorEnvWrapper(BaseEnv):
     """Internal adapter of VectorEnv to BaseEnv.
