@@ -1,6 +1,7 @@
 import logging
 from typing import List, Optional, Type
 
+import ray
 from ray.rllib.algorithms.algorithm import Algorithm, AlgorithmConfig
 from ray.rllib.execution import synchronous_parallel_sample
 from ray.rllib.execution.train_ops import multi_gpu_train_one_step, train_one_step
@@ -21,6 +22,8 @@ from ray.rllib.utils.typing import (
     PartialAlgorithmConfigDict,
     ResultDict,
 )
+
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -198,13 +201,7 @@ class CRR(Algorithm):
         post_fn = self.config.get("before_learn_on_batch") or (lambda b, *a: b)
         train_batch = post_fn(train_batch, self.workers, self.config)
 
-        # Learn on training batch.
-        # Use simple optimizer (only for multi-agent or tf-eager; all other
-        # cases should use the multi-GPU optimizer, even if only using 1 GPU)
-        if self.config.get("simple_optimizer", False):
-            train_results = train_one_step(self, train_batch)
-        else:
-            train_results = multi_gpu_train_one_step(self, train_batch)
+        train_results = self.distributed_train(train_batch)
 
         # update target every few gradient updates
         # Update target network every `target_network_update_freq` training steps.
@@ -224,3 +221,39 @@ class CRR(Algorithm):
 
         self._counters[NUM_GRADIENT_UPDATES] += 1
         return train_results
+
+    def distributed_train(self, train_batch) -> ResultDict:
+        """Train on the given batch and return the results.
+
+        Args:
+            train_batch (SampleBatch): The batch to train on.
+
+        Returns:
+            ResultDict: The training results.
+        """
+        # get shard indices
+        num_workers = self.num_training_workers
+        batch_length = train_batch.count
+        shard_indices = []
+        for i in range(num_workers):
+            shard_indices.append(
+                (i * batch_length // num_workers, (i + 1) * batch_length // num_workers - 1)
+            )
+
+        train_refs = []
+        for worker_index, shard_indices in enumerate(shard_indices):
+            train_ref = self.train_workers[worker_index].train.remote(train_batch, shard_indices)
+            train_refs.append(train_ref)
+        ray.get(train_refs)
+        train_results = ray.get(self.train_workers[0].get_training_results.remote())
+
+        return train_results
+
+
+class CRRTrainingWorker:
+
+    def setup(self, config):
+        from ray.rllib.algorithms.crr.torch import CRRTorchPolicy
+        self.config = config
+        self.policy = CRRTorchPolicy(config)
+        
