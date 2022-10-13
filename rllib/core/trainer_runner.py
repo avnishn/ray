@@ -11,10 +11,12 @@ from ray.air.config import ScalingConfig
 class TrainerRunner:
     def __init__(self, trainer_class, trainer_config, framework="torch"):
         self._trainer_config = trainer_config
-        resources = self._compute_necessary_resources()
+        # resources = self._compute_necessary_resources()
+        num_workers = 1
         scaling_config = ScalingConfig(
-            num_workers=resources["num_workers"],
-            use_gpu=resources["use_gpu"],
+            num_workers=num_workers,
+            use_gpu=bool(trainer_config["num_gpus"]),
+            resources_per_worker={"CPU": 1, "GPU": trainer_config["num_gpus"]},
         )
         # the only part of this class that is framework agnostic:
         if framework == "torch":
@@ -32,7 +34,7 @@ class TrainerRunner:
             max_retries=0,
         )
 
-        _scaling_config = {"world_size": resources["num_workers"]}
+        _scaling_config = {"world_size": num_workers}
         trainer_config["_scaling_config"] = _scaling_config
         self.backend_executor.start(
             train_cls=trainer_class, train_cls_args=(trainer_config,)
@@ -41,22 +43,24 @@ class TrainerRunner:
 
         ray.get([w._init_model.remote() for w in self.workers])
 
-    def _compute_necessary_resources(self):
-        num_gpus = self._trainer_config.get("num_gpus", 0)
-        num_workers = self._trainer_config.get("num_training_workers", 0)
-        if num_workers and num_gpus:
-            assert num_workers == num_gpus, (
-                "If num_training_workers and "
-                "num_gpus are specified it must be equal to num_gpus"
-            )
+    # def _compute_necessary_resources(self):
+    #     num_gpus = self._trainer_config.get("num_gpus", 0)
+    #     num_workers = self._trainer_config.get("num_training_workers", 0)
+    #     if num_workers and num_gpus:
+    #         assert num_workers == num_gpus, (
+    #             "If num_training_workers and "
+    #             "num_gpus are specified it must be equal to num_gpus"
+    #         )
 
-        elif num_gpus and not num_workers:
-            num_workers = num_gpus
+    #     elif num_gpus and not num_workers:
+    #         num_workers = num_gpus
 
-        elif not num_gpus and not num_workers:
-            num_workers = 1
+    #     elif not num_gpus and not num_workers:
+    #         num_workers = 1
+        
+    #     num_workers = 1
 
-        return {"num_workers": num_workers, "use_gpu": bool(num_gpus)}
+    #     return {"num_workers": num_workers, "use_gpu": bool(num_gpus)}
 
     def update(self, batch):
         global_size = len(self.workers)

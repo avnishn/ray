@@ -14,12 +14,11 @@ class TorchSARLTrainer(SARLTrainer):
         assert len(gpu_ids) <= 1, (
             "Distributed trainers by default only " "support 1 GPU per worker"
         )
-        self._gpu_id = gpu_ids[0] if gpu_ids else None
-        # if self._gpu_id:
 
         self._rank = 0
         self._world_size = 1
-        self.gpu_id = gpu_ids[0] if gpu_ids else None
+
+        self.gpu_id = 0
 
     def _init_model(self):
         """Do not modify this function
