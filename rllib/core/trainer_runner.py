@@ -75,26 +75,36 @@ class TrainerRunner:
 
         return {"num_workers": num_workers, "use_gpu": bool(num_gpus)}
 
-    def update(self, batch=None, **kwargs):
-        """TODO: acount for **kwargs
+    # def update(self, batch=None, **kwargs):
+    #     """TODO: acount for **kwargs
 
-        Example in DQN:
-            >>> trainer_runner.update(batch) # updates the gradient
-            >>> trainer_runner.update(update_target=True) # should soft-update the target network
+    #     Example in DQN:
+    #         >>> trainer_runner.update(batch) # updates the gradient
+    #         >>> trainer_runner.update(update_target=True) # should soft-update the target network
 
-        """
-        if batch is None:
-            for worker in self.workers:
-                refs.append(worker.update.remote(**kwargs))
-        else:
+    #     """
+    #     if batch is None:
+    #         for worker in self.workers:
+    #             refs.append(worker.update.remote(**kwargs))
+    #     else:
 
-            global_size = len(self.workers)
-            batch_size = np.ceil(len(batch) / global_size)
-            refs = []
-            for i, worker in enumerate(self.workers):
-                start = batch_size * i
-                end = min(start + batch_size, len(batch))
-                new_batch = batch[int(start) : int(end)]
-                refs.append(worker.update.remote(new_batch))
+    #         global_size = len(self.workers)
+    #         batch_size = np.ceil(len(batch) / global_size)
+    #         refs = []
+    #         for i, worker in enumerate(self.workers):
+    #             start = batch_size * i
+    #             end = min(start + batch_size, len(batch))
+    #             new_batch = batch[int(start) : int(end)]
+    #             refs.append(worker.update.remote(new_batch))
 
+    #     return ray.get(refs)
+    def update(self, batch):
+        global_size = len(self.workers)
+        batch_size = np.ceil(len(batch) / global_size)
+        refs = []
+        for i, worker in enumerate(self.workers):
+            start = batch_size * i
+            end = min(start + batch_size, len(batch))
+            new_batch = batch[int(start) : int(end)]
+            refs.append(worker.update.remote(new_batch))
         return ray.get(refs)
